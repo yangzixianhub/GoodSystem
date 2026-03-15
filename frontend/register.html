@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - 商品库存与秒杀系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="page-wrap">
+    <header class="site-header">
+      <div class="logo-wrap">
+        <h1 class="logo">商品库存与秒杀系统</h1>
+        <span class="badge">秒杀</span>
+      </div>
+      <p class="tagline">注册账号参与秒杀</p>
+    </header>
+
+    <main class="main-content">
+      <section class="card register-card">
+        <h2>注册</h2>
+        <p class="subtitle">创建账号，参与限时秒杀</p>
+        <form id="registerForm" class="form">
+          <div class="field">
+            <label for="reg-username">用户名</label>
+            <input type="text" id="reg-username" name="username" required autocomplete="username" placeholder="请输入用户名">
+          </div>
+          <div class="field">
+            <label for="reg-password">密码</label>
+            <input type="password" id="reg-password" name="password" required autocomplete="new-password" placeholder="请输入密码">
+          </div>
+          <div class="field">
+            <label for="reg-phone">手机号</label>
+            <input type="tel" id="reg-phone" name="phone" required placeholder="请输入手机号">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">注册</button>
+          </div>
+        </form>
+        <p class="switch-form">
+          已有账号？<a href="index.html">去登录</a>
+        </p>
+        <div id="registerMessage" class="message" role="alert" hidden></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>分布式作业 HW1 · GoodSystem</p>
+    </footer>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      var form = document.getElementById('registerForm');
+      var msgEl = document.getElementById('registerMessage');
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var username = document.getElementById('reg-username').value.trim();
+        var password = document.getElementById('reg-password').value;
+        var phone = document.getElementById('reg-phone').value.trim();
+        app.showMessage(msgEl, '');
+        app.register(username, password, phone)
+          .then(function(res) {
+            if (res.success) {
+              app.showMessage(msgEl, '注册成功，请登录', 'success');
+              setTimeout(function() { window.location.href = 'index.html'; }, 1200);
+            } else {
+              app.showMessage(msgEl, res.msg || '注册失败', 'error');
+            }
+          })
+          .catch(function(err) {
+            app.showMessage(msgEl, err.message || '网络错误，请重试', 'error');
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

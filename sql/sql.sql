@@ -1,5 +1,3 @@
-create database message;
-use message;
 CREATE TABLE IF NOT EXISTS user
 (
     id          INT AUTO_INCREMENT PRIMARY KEY,
