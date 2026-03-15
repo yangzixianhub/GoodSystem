@@ -1,0 +1,12 @@
+graph TD
+    Client[客户端/App/Web] --> Gateway[API 网关]
+    Gateway --> UserSvc[用户服务]
+    Gateway --> GoodsSvc[商品服务]
+    Gateway --> OrderSvc[订单服务]
+    Gateway --> StockSvc[库存服务]
+    
+    OrderSvc -.-> MQ[消息队列 Kafka/RocketMQ]
+    MQ -.-> StockSvc
+    
+    StockSvc --> Redis[(Redis 预扣库存)]
+    StockSvc --> MySQL[(MySQL 数据库)]
