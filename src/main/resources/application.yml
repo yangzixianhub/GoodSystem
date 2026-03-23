@@ -4,24 +4,21 @@ spring:
   application:
     name: spring-jwt-login
   datasource:
-    type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://db:3306/message?autoReconnect=true&useUnicode=true&characterEncoding=utf-8&autoReconnect=true&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: ""
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
     druid:
-      initial-size: 10
-      min-idle: 10
-      max-active: 100
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
       max-wait: 60000
       time-between-eviction-runs-millis: 300000
-      min-evictable-idle-time-millis: 3600000
-      validation-query: select-1-from-dual
+      validation-query: select 1
       test-while-idle: true
-      test-on-borrow: false
-      test-on-return: false
-      pool-prepared-statements: true
-      max-pool-prepared-statement-per-connection-size: 20
+    master:
+      url: ${SPRING_DATASOURCE_MASTER_URL:jdbc:mysql://localhost:3306/message?useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true&useSSL=false}
+    slave:
+      url: ${SPRING_DATASOURCE_SLAVE_URL:jdbc:mysql://localhost:3307/message?useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true&useSSL=false}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -29,6 +26,8 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 3000ms
+  elasticsearch:
+    uris: ${ES_URIS:http://localhost:9200}
 
 mybatis:
   mapper-locations: classpath*:mapper/*.xml

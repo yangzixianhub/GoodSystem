@@ -1,0 +1,6 @@
+--创建业务库
+CREATE DATABASE IF NOT EXISTS message;
+
+CREATE USER IF NOT EXISTS 'repl'@'%' IDENTIFIED WITH mysql_native_password BY 'repl';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';
+FLUSH PRIVILEGES;

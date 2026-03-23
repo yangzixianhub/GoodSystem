@@ -7,6 +7,7 @@ import dev.wanheng.springjwtlogin.service.ProductService;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +33,7 @@ public class ProductServiceImpl implements ProductService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
+    @Transactional(readOnly = true)
     public Product getDetailById(Long id) {
         if (id == null) return null;
         String cacheKey = CACHE_KEY_PREFIX + id;

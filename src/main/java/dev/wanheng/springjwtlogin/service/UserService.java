@@ -8,22 +8,12 @@ import java.util.List;
 @Service
 public interface UserService {
 
-    /**
-     * 用户注册
-     * @param userDto
-     */
+    //用户注册
     void register(UserDto userDto);
 
-    /**
-     * 根据用户名查询用户信息
-     * @param username
-     * @return
-     */
+    //根据用户名查询用户信息
     UserDto getUserByUsername(String username);
 
-    /**
-     * 用户列表
-     * @return
-     */
+    //用户列表
     List<UserDto> getUserList();
 }
