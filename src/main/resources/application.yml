@@ -1,5 +1,12 @@
 server:
   port: 8080
+
+app:
+  datasource:
+    mode: ${APP_DATASOURCE_MODE:routing}
+    shard0-url: ${APP_DATASOURCE_SHARD0_URL:}
+    shard1-url: ${APP_DATASOURCE_SHARD1_URL:}
+
 spring:
   application:
     name: spring-jwt-login
@@ -28,6 +35,28 @@ spring:
       timeout: 3000ms
   elasticsearch:
     uris: ${ES_URIS:http://localhost:9200}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:seckill-order-consumer}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: dev.wanheng.springjwtlogin.messaging
+
+seckill:
+  kafka:
+    topic: seckill-order-create
+  snowflake:
+    worker-id: ${SECKILL_SNOWFLAKE_WORKER_ID:1}
+    datacenter-id: ${SECKILL_SNOWFLAKE_DATACENTER_ID:1}
 
 mybatis:
   mapper-locations: classpath*:mapper/*.xml

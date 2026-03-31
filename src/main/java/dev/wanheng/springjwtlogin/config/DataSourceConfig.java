@@ -12,8 +12,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import javax.sql.DataSource;
 import java.util.Map;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 //MySQL读写分离
 @Configuration
+@ConditionalOnProperty(name = "app.datasource.mode", havingValue = "routing", matchIfMissing = true)
 public class DataSourceConfig {
 
     @Value("${spring.datasource.master.url}")
