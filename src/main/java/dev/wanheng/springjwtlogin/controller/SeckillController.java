@@ -2,6 +2,7 @@ package dev.wanheng.springjwtlogin.controller;
 
 import dev.wanheng.springjwtlogin.dto.PlainResult;
 import dev.wanheng.springjwtlogin.dto.SeckillOrderViewDto;
+import dev.wanheng.springjwtlogin.dto.SeckillPayRequest;
 import dev.wanheng.springjwtlogin.dto.SeckillPlaceOrderRequest;
 import dev.wanheng.springjwtlogin.dto.SeckillPlaceOrderResponse;
 import dev.wanheng.springjwtlogin.dto.UserDto;
@@ -73,6 +74,22 @@ public class SeckillController {
             return PlainResult.fail(401, e.getMessage());
         } catch (SecurityException e) {
             return PlainResult.fail(403, e.getMessage());
+        }
+    }
+
+    @PostMapping("/pay")
+    public PlainResult<String> payOrder(@RequestBody SeckillPayRequest request) {
+        try {
+            String username = currentUsername();
+            seckillOrderService.payOrder(username, request.getOrderId());
+            return PlainResult.success("支付已受理，状态异步更新");
+        } catch (IllegalArgumentException e) {
+            return PlainResult.fail(400, e.getMessage());
+        } catch (IllegalStateException e) {
+            if ("未登录".equals(e.getMessage())) {
+                return PlainResult.fail(401, e.getMessage());
+            }
+            return PlainResult.fail(409, e.getMessage());
         }
     }
 

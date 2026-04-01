@@ -114,6 +114,9 @@ public class ShardingSphereDataSourceConfig {
                   tables:
                     - common.user
                     - common.product
+                    - common.local_tx_event
+                    - common.processed_event
+                    - common.payment_record
 
                 props:
                   sql-show: false

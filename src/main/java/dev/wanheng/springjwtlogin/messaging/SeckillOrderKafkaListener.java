@@ -13,10 +13,10 @@ public class SeckillOrderKafkaListener {
     private SeckillOrderConsumerService seckillOrderConsumerService;
 
     @KafkaListener(
-            topics = "${seckill.kafka.topic}",
+            topics = "${seckill.kafka.consistency-topic}",
             containerFactory = "seckillKafkaListenerContainerFactory")
-    public void onMessage(SeckillOrderMessage message, Acknowledgment acknowledgment) {
-        seckillOrderConsumerService.handleMessage(message);
+    public void onMessage(ConsistencyEventMessage message, Acknowledgment acknowledgment) {
+        seckillOrderConsumerService.handleEvent(message);
         acknowledgment.acknowledge();
     }
 }

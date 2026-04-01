@@ -1,6 +1,6 @@
 package dev.wanheng.springjwtlogin.service.seckill;
 
-import dev.wanheng.springjwtlogin.messaging.SeckillOrderMessage;
+import dev.wanheng.springjwtlogin.messaging.ConsistencyEventMessage;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -16,12 +16,12 @@ public class SeckillKafkaProducer {
     @Resource
     private KafkaTemplate kafkaTemplate;
 
-    @Value("${seckill.kafka.topic}")
-    private String topic;
+    @Value("${seckill.kafka.consistency-topic}")
+    private String consistencyTopic;
 
-    public void sendOrderCreate(SeckillOrderMessage message) throws Exception {
+    public void sendConsistencyEvent(ConsistencyEventMessage message) throws Exception {
         CompletableFuture<?> future =
-                kafkaTemplate.send(topic, String.valueOf(message.getOrderId()), message);
+                kafkaTemplate.send(consistencyTopic, message.getEventId(), message);
         future.get(10, TimeUnit.SECONDS);
     }
 }

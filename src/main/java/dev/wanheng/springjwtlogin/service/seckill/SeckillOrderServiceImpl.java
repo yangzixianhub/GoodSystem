@@ -1,23 +1,29 @@
 package dev.wanheng.springjwtlogin.service.seckill;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import dev.wanheng.springjwtlogin.domain.LocalTxEvent;
+import dev.wanheng.springjwtlogin.domain.PaymentRecord;
 import dev.wanheng.springjwtlogin.domain.Product;
 import dev.wanheng.springjwtlogin.domain.SeckillOrder;
 import dev.wanheng.springjwtlogin.dto.SeckillOrderViewDto;
 import dev.wanheng.springjwtlogin.dto.SeckillPlaceOrderResponse;
 import dev.wanheng.springjwtlogin.dto.UserDto;
+import dev.wanheng.springjwtlogin.mapper.PaymentRecordMapper;
 import dev.wanheng.springjwtlogin.mapper.ProductMapper;
 import dev.wanheng.springjwtlogin.mapper.SeckillOrderMapper;
-import dev.wanheng.springjwtlogin.messaging.SeckillOrderMessage;
+import dev.wanheng.springjwtlogin.messaging.ConsistencyEventType;
 import dev.wanheng.springjwtlogin.service.UserService;
 import dev.wanheng.springjwtlogin.util.SnowflakeIdGenerator;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,11 +40,15 @@ public class SeckillOrderServiceImpl implements SeckillOrderService {
     @Resource
     private SeckillStockRedisService seckillStockRedisService;
     @Resource
-    private SeckillKafkaProducer seckillKafkaProducer;
+    private SeckillOrderTxnService seckillOrderTxnService;
     @Resource
     private SnowflakeIdGenerator snowflakeIdGenerator;
     @Resource
     private RedisTemplate<String, String> redisTemplate;
+    @Resource
+    private PaymentRecordMapper paymentRecordMapper;
+    @Resource
+    private LocalTxEventService localTxEventService;
 
     private static boolean isNumericOrderId(String value) {
         return value != null && !value.isEmpty() && value.chars().allMatch(Character::isDigit);
@@ -87,19 +97,7 @@ public class SeckillOrderServiceImpl implements SeckillOrderService {
             }
 
             long orderId = snowflakeIdGenerator.nextId();
-            SeckillOrderMessage message = new SeckillOrderMessage();
-            message.setOrderId(orderId);
-            message.setUserId(userId);
-            message.setProductId(productId);
-            message.setUnitPrice(product.getPrice());
-
-            try {
-                seckillKafkaProducer.sendOrderCreate(message);
-            } catch (Exception e) {
-                seckillStockRedisService.incrementCachedStock(productId, 1);
-                redisTemplate.delete(idempKey);
-                throw new IllegalStateException("下单队列繁忙，请稍后重试", e);
-            }
+            seckillOrderTxnService.createOrderAndOutbox(orderId, userId, productId, product.getPrice());
 
             redisTemplate.opsForValue().set(idempKey, String.valueOf(orderId), Duration.ofDays(7));
             return new SeckillPlaceOrderResponse(orderId, "已受理，订单异步落库中，可通过订单号查询");
@@ -132,6 +130,47 @@ public class SeckillOrderServiceImpl implements SeckillOrderService {
                 new LambdaQueryWrapper<SeckillOrder>().eq(SeckillOrder::getUserId, userId)
                         .orderByDesc(SeckillOrder::getCreatedAt));
         return list.stream().map(this::toView).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void payOrder(String username, Long orderId) {
+        UserDto user = userService.getUserByUsername(username);
+        if (user == null || user.getId() == null) {
+            throw new IllegalStateException("用户不存在");
+        }
+        SeckillOrder order = seckillOrderMapper.selectOne(new LambdaQueryWrapper<SeckillOrder>()
+                .eq(SeckillOrder::getId, orderId)
+                .eq(SeckillOrder::getUserId, user.getId()));
+        if (order == null) {
+            throw new IllegalArgumentException("订单不存在");
+        }
+        if (Objects.equals(order.getStatus(), SeckillOrder.STATUS_PAID)) {
+            return;
+        }
+        if (!Objects.equals(order.getStatus(), SeckillOrder.STATUS_WAIT_PAY)) {
+            throw new IllegalStateException("订单状态不支持支付");
+        }
+        if (paymentRecordMapper.selectCount(new LambdaQueryWrapper<PaymentRecord>()
+                .eq(PaymentRecord::getOrderId, orderId)
+                .eq(PaymentRecord::getUserId, user.getId())) == 0) {
+            PaymentRecord record = new PaymentRecord();
+            record.setOrderId(orderId);
+            record.setUserId(user.getId());
+            record.setAmount(order.getUnitPrice());
+            record.setPayStatus(1);
+            record.setCreatedAt(LocalDateTime.now());
+            paymentRecordMapper.insert(record);
+        }
+        LocalTxEvent event = LocalTxEventService.buildEvent(
+                UUID.randomUUID().toString(),
+                ConsistencyEventType.PAY_SUCCESS,
+                orderId,
+                user.getId(),
+                order.getProductId(),
+                1,
+                order.getUnitPrice());
+        localTxEventService.saveEvent(event);
     }
 
     private SeckillOrderViewDto toView(SeckillOrder o) {

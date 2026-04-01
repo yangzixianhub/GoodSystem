@@ -12,8 +12,10 @@ import java.time.LocalDateTime;
 public class SeckillOrder implements Serializable {
 
     public static final int STATUS_PENDING = 0;
-    public static final int STATUS_CONFIRMED = 1;
-    public static final int STATUS_CANCELLED = 2;
+    public static final int STATUS_WAIT_PAY = 1;
+    public static final int STATUS_PAID = 2;
+    public static final int STATUS_FAILED = 3;
+    public static final int STATUS_CANCELLED = 4;
 
     @TableId(type = IdType.INPUT)
     private Long id;

@@ -53,10 +53,12 @@ spring:
 
 seckill:
   kafka:
-    topic: seckill-order-create
+    consistency-topic: seckill-consistency-event
   snowflake:
     worker-id: ${SECKILL_SNOWFLAKE_WORKER_ID:1}
     datacenter-id: ${SECKILL_SNOWFLAKE_DATACENTER_ID:1}
+  event:
+    dispatch-interval-ms: 1000
 
 mybatis:
   mapper-locations: classpath*:mapper/*.xml

@@ -12,4 +12,6 @@ public interface SeckillOrderService {
     SeckillOrderViewDto getOrderForUser(Long orderId, Long currentUserId);
 
     List<SeckillOrderViewDto> listOrdersByUser(Long userId, Long currentUserId);
+
+    void payOrder(String username, Long orderId);
 }

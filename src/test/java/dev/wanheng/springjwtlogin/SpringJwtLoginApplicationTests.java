@@ -7,7 +7,7 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 @SpringBootTest
 @EmbeddedKafka(
         partitions = 1,
-        topics = "seckill-order-create",
+        topics = "seckill-consistency-event",
         brokerProperties = {"listeners=PLAINTEXT://localhost:0", "port=0"})
 class SpringJwtLoginApplicationTests {
 
