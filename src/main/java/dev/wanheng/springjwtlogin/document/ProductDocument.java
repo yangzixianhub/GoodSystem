@@ -8,7 +8,7 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 import java.math.BigDecimal;
 
 //商品ES文档，用于搜索
-@Document(indexName = "product")
+@Document(indexName = "product", createIndex = false)
 public class ProductDocument {
 
     @Id
