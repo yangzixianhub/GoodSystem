@@ -13,6 +13,12 @@ services:
       - mysql_master_data:/var/lib/mysql
       - ./docker/mysql-master/conf.d:/etc/mysql/conf.d
       - ./docker/mysql-master/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
     networks:
       - goodsystem-net
 
@@ -31,6 +37,12 @@ services:
       - mysql_slave_data:/var/lib/mysql
       - ./docker/mysql-slave/conf.d:/etc/mysql/conf.d
       - ./docker/mysql-slave/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
     networks:
       - goodsystem-net
 
@@ -73,17 +85,60 @@ services:
     networks:
       - goodsystem-net
 
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: goodsystem-nacos
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8848/nacos/actuator/health > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 40s
+    networks:
+      - goodsystem-net
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: goodsystem-gateway
+    depends_on:
+      nacos:
+        condition: service_healthy
+      backend1:
+        condition: service_started
+      backend2:
+        condition: service_started
+    environment:
+      NACOS_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+    ports:
+      - "88:8080"
+    networks:
+      - goodsystem-net
+
   backend1:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: goodsystem-backend1
     depends_on:
-      - mysql-master
-      - mysql-slave
-      - redis
-      - elasticsearch
-      - kafka
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+      kafka:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_MASTER_URL: jdbc:mysql://mysql-master:3306/message?useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true&useSSL=false
       SPRING_DATASOURCE_SLAVE_URL: jdbc:mysql://mysql-slave:3306/message?useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true&useSSL=false
@@ -92,6 +147,7 @@ services:
       REDIS_HOST: redis
       ES_URIS: http://elasticsearch:9200
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      NACOS_ADDR: nacos:8848
       SECKILL_SNOWFLAKE_WORKER_ID: 1
       APP_DATASOURCE_MODE: sharding
       TZ: Asia/Shanghai
@@ -106,11 +162,16 @@ services:
       dockerfile: Dockerfile
     container_name: goodsystem-backend2
     depends_on:
-      - mysql-master
-      - mysql-slave
-      - redis
-      - elasticsearch
-      - kafka
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+      kafka:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_MASTER_URL: jdbc:mysql://mysql-master:3306/message?useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true&useSSL=false
       SPRING_DATASOURCE_SLAVE_URL: jdbc:mysql://mysql-slave:3306/message?useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true&useSSL=false
@@ -119,6 +180,7 @@ services:
       REDIS_HOST: redis
       ES_URIS: http://elasticsearch:9200
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      NACOS_ADDR: nacos:8848
       SECKILL_SNOWFLAKE_WORKER_ID: 2
       APP_DATASOURCE_MODE: sharding
       TZ: Asia/Shanghai
@@ -145,8 +207,7 @@ services:
     image: nginx:1.25
     container_name: goodsystem-nginx
     depends_on:
-      - backend1
-      - backend2
+      - gateway
     ports:
       - "80:80"
     volumes:

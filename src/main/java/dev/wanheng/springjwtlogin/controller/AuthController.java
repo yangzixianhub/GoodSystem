@@ -46,9 +46,28 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken
                         (userDto.getUsername(), userDto.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authenticate);
+        UserDto dbUser = userService.getUserByUsername(userDto.getUsername());
         LoginResponseDto loginResponseDto = new LoginResponseDto();
         loginResponseDto.setToken(jwtUtil.generateToken(userDto.getUsername(), userDto.getPhone()));
+        if (dbUser != null) {
+            loginResponseDto.setUserId(dbUser.getId());
+            loginResponseDto.setUsername(dbUser.getUsername());
+        }
         return PlainResult.success(loginResponseDto);
+    }
+
+    @GetMapping("/me")
+    public PlainResult<UserDto> me() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
+            return PlainResult.fail(401, "未登录");
+        }
+        UserDto u = userService.getUserByUsername(auth.getName());
+        if (u == null) {
+            return PlainResult.fail(404, "用户不存在");
+        }
+        u.setPassword(null);
+        return PlainResult.success(u);
     }
 }
 

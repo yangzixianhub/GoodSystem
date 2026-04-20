@@ -10,6 +10,16 @@ app:
 spring:
   application:
     name: spring-jwt-login
+  config:
+    import: optional:nacos:${spring.application.name}.yaml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        file-extension: yaml
+        refresh-enabled: true
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${SPRING_DATASOURCE_USERNAME:root}
@@ -62,3 +72,9 @@ seckill:
 
 mybatis:
   mapper-locations: classpath*:mapper/*.xml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单详情</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="page-wrap page-wide">
+    <nav class="top-nav">
+      <a class="nav-brand" href="index.html">GoodSystem</a>
+      <div class="nav-links">
+        <a href="index.html">商品</a>
+        <a href="orders.html">我的订单</a>
+        <span id="navUser" class="nav-user"></span>
+        <a id="navLogin" href="login.html">登录</a>
+        <a id="navLogout" href="#" hidden>退出</a>
+      </div>
+    </nav>
+
+    <main class="shop-main">
+      <p class="breadcrumb"><a href="orders.html">← 返回订单列表</a></p>
+
+      <section id="needLogin" class="card" hidden>
+        <p>请先 <a href="login.html">登录</a>。</p>
+      </section>
+
+      <section id="detailBox" class="card detail-card" hidden>
+        <h2>订单详情</h2>
+        <dl class="kv-list">
+          <dt>订单号</dt><dd id="fOrderId"></dd>
+          <dt>用户ID</dt><dd id="fUserId"></dd>
+          <dt>商品ID</dt><dd id="fProductId"></dd>
+          <dt>单价</dt><dd id="fPrice"></dd>
+          <dt>状态</dt><dd id="fStatus"></dd>
+          <dt>创建时间</dt><dd id="fCreated"></dd>
+        </dl>
+        <div id="detailMessage" class="message" role="alert" hidden></div>
+        <div class="detail-actions">
+          <button type="button" id="btnPay" class="btn btn-primary btn-inline" hidden>支付</button>
+        </div>
+      </section>
+
+      <section id="notFound" class="card" hidden>
+        <p>订单不存在或无权查看。</p>
+        <a href="orders.html">返回列表</a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>分布式作业 HW1 · GoodSystem</p>
+    </footer>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var oid = params.get('id');
+
+      app.renderNav(document.getElementById('navUser'), document.getElementById('navLogin'), document.getElementById('navLogout'));
+
+      function statusText(s) {
+        var m = { 0: '处理中', 1: '待支付', 2: '已支付', 3: '失败', 4: '已取消' };
+        return m[s] != null ? m[s] : String(s);
+      }
+
+      if (!app.getToken()) {
+        document.getElementById('needLogin').hidden = false;
+        return;
+      }
+
+      if (!oid) {
+        document.getElementById('notFound').hidden = false;
+        return;
+      }
+
+      app.getOrder(oid)
+        .then(function(res) {
+          if (!res.success || !res.data) {
+            document.getElementById('notFound').hidden = false;
+            return;
+          }
+          var o = res.data;
+          document.getElementById('detailBox').hidden = false;
+          document.getElementById('fOrderId').textContent = o.orderId;
+          document.getElementById('fUserId').textContent = o.userId;
+          document.getElementById('fProductId').textContent = o.productId;
+          document.getElementById('fPrice').textContent = '¥' + app.formatMoney(o.unitPrice);
+          document.getElementById('fStatus').textContent = statusText(o.status);
+          document.getElementById('fCreated').textContent = o.createdAt || '';
+
+          var btn = document.getElementById('btnPay');
+          var msgEl = document.getElementById('detailMessage');
+          if (o.status === 1) {
+            btn.hidden = false;
+            btn.onclick = function() {
+              app.showMessage(msgEl, '');
+              app.payOrder(o.orderId)
+                .then(function(r) {
+                  if (r.success) {
+                    app.showMessage(msgEl, r.data || '支付已受理', 'success');
+                    location.reload();
+                  } else {
+                    app.showMessage(msgEl, r.msg || '失败', 'error');
+                  }
+                })
+                .catch(function(err) {
+                  app.showMessage(msgEl, err.message || '失败', 'error');
+                });
+            };
+          }
+        })
+        .catch(function(err) {
+          if (err.status === 401) {
+            document.getElementById('needLogin').hidden = false;
+            return;
+          }
+          document.getElementById('notFound').hidden = false;
+        });
+    })();
+  </script>
+</body>
+</html>

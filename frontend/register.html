@@ -38,7 +38,10 @@
           </div>
         </form>
         <p class="switch-form">
-          已有账号？<a href="index.html">去登录</a>
+          已有账号？<a href="login.html">去登录</a>
+        </p>
+        <p class="switch-form">
+          <a href="index.html">← 返回商城</a>
         </p>
         <div id="registerMessage" class="message" role="alert" hidden></div>
       </section>
@@ -63,7 +66,7 @@
           .then(function(res) {
             if (res.success) {
               app.showMessage(msgEl, '注册成功，请登录', 'success');
-              setTimeout(function() { window.location.href = 'index.html'; }, 1200);
+              setTimeout(function() { window.location.href = 'login.html'; }, 1200);
             } else {
               app.showMessage(msgEl, res.msg || '注册失败', 'error');
             }

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品详情</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="page-wrap page-wide">
+    <nav class="top-nav">
+      <a class="nav-brand" href="index.html">GoodSystem</a>
+      <div class="nav-links">
+        <a href="index.html">商品</a>
+        <a href="orders.html">我的订单</a>
+        <span id="navUser" class="nav-user"></span>
+        <a id="navLogin" href="login.html">登录</a>
+        <a id="navLogout" href="#" hidden>退出</a>
+      </div>
+    </nav>
+
+    <main class="shop-main">
+      <p class="breadcrumb"><a href="index.html">← 返回列表</a></p>
+
+      <section id="loadingCard" class="card">
+        <p class="muted">加载中…</p>
+      </section>
+
+      <section id="detailCard" class="card detail-card" hidden>
+        <h2 id="pName" class="detail-title"></h2>
+        <p id="pPrice" class="detail-price"></p>
+        <p id="pStock" class="detail-stock"></p>
+        <div id="pDesc" class="detail-desc"></div>
+        <div class="detail-actions">
+          <button type="button" id="btnSeckill" class="btn btn-primary btn-inline">秒杀下单</button>
+          <span class="muted small">需登录；Redis 预扣 + Kafka 异步落库，库存以 Saga 为准</span>
+        </div>
+        <div id="detailMessage" class="message" role="alert" hidden></div>
+      </section>
+
+      <section id="notFoundCard" class="card" hidden>
+        <p>商品不存在或已下架。</p>
+        <a href="index.html">回首页</a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>分布式作业 HW1 · GoodSystem</p>
+    </footer>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var id = params.get('id');
+      var msgEl = document.getElementById('detailMessage');
+
+      app.renderNav(document.getElementById('navUser'), document.getElementById('navLogin'), document.getElementById('navLogout'));
+
+      if (!id) {
+        document.getElementById('loadingCard').hidden = true;
+        document.getElementById('notFoundCard').hidden = false;
+        return;
+      }
+
+      app.getProductDetail(id)
+        .then(function(res) {
+          document.getElementById('loadingCard').hidden = true;
+          if (!res.success || !res.data) {
+            document.getElementById('notFoundCard').hidden = false;
+            return;
+          }
+          var p = res.data;
+          document.getElementById('detailCard').hidden = false;
+          document.getElementById('pName').textContent = p.name || '';
+          document.getElementById('pPrice').textContent = '价格 ¥' + app.formatMoney(p.price);
+          document.getElementById('pStock').textContent = '库存：' + (p.stock != null ? p.stock : '—');
+          document.getElementById('pDesc').textContent = p.description || '暂无描述';
+
+          document.getElementById('btnSeckill').onclick = function() {
+            if (!app.getToken()) {
+              window.location.href = 'login.html';
+              return;
+            }
+            app.showMessage(msgEl, '');
+            app.placeOrder(p.id)
+              .then(function(r) {
+                if (r.success && r.data) {
+                  var oid = r.data.orderId;
+                  var hint = r.data.hint || '';
+                  app.showMessage(msgEl, '下单已受理，订单号 ' + oid + (hint ? ' · ' + hint : ''), 'success');
+                  setTimeout(function() {
+                    window.location.href = 'orders.html';
+                  }, 1200);
+                } else {
+                  app.showMessage(msgEl, r.msg || '下单失败', 'error');
+                }
+              })
+              .catch(function(err) {
+                if (err.status === 401) {
+                  window.location.href = 'login.html';
+                  return;
+                }
+                app.showMessage(msgEl, err.message || '下单失败', 'error');
+              });
+          };
+        })
+        .catch(function() {
+          document.getElementById('loadingCard').hidden = true;
+          document.getElementById('notFoundCard').hidden = false;
+        });
+    })();
+  </script>
+</body>
+</html>

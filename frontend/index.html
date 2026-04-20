@@ -3,40 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登录 - 商品库存与秒杀系统</title>
+  <title>商城 · 搜索与秒杀</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="page-wrap">
-    <header class="site-header">
-      <div class="logo-wrap">
-        <h1 class="logo">商品库存与秒杀系统</h1>
-        <span class="badge">秒杀</span>
+  <div class="page-wrap page-wide">
+    <nav class="top-nav">
+      <a class="nav-brand" href="index.html">GoodSystem</a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-active">商品</a>
+        <a href="orders.html">我的订单</a>
+        <span id="navUser" class="nav-user"></span>
+        <a id="navLogin" href="login.html">登录</a>
+        <a id="navLogout" href="#" hidden>退出</a>
       </div>
-      <p class="tagline">登录后参与秒杀</p>
+    </nav>
+
+    <header class="shop-header">
+      <h1 class="logo">商品搜索</h1>
+      <p class="tagline">Elasticsearch 检索 · 点进详情参与秒杀（订单与库存由 Saga 异步一致）</p>
     </header>
 
-    <main class="main-content">
-      <section class="card login-card">
-        <h2>登录</h2>
-        <p class="subtitle">使用账号密码登录系统</p>
-        <form id="loginForm" class="form">
-          <div class="field">
-            <label for="login-username">用户名</label>
-            <input type="text" id="login-username" name="username" required autocomplete="username" placeholder="请输入用户名">
-          </div>
-          <div class="field">
-            <label for="login-password">密码</label>
-            <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="请输入密码">
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">登录</button>
-          </div>
+    <main class="shop-main">
+      <section class="card search-card">
+        <form id="searchForm" class="search-row">
+          <input type="search" id="keyword" name="keyword" placeholder="输入关键词搜索商品，留空展示列表" autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-inline">搜索</button>
         </form>
-        <p class="switch-form">
-          还没有账号？<a href="register.html">立即注册</a>
-        </p>
-        <div id="loginMessage" class="message" role="alert" hidden></div>
+        <p class="hint">提示：首次部署若搜索无结果，可在后端调用 <code>POST /product/sync</code> 将 MySQL 同步到 ES。</p>
+        <div id="searchMessage" class="message" role="alert" hidden></div>
+      </section>
+
+      <section class="product-grid-wrap">
+        <h2 class="section-title">商品列表</h2>
+        <div id="productGrid" class="product-grid"></div>
+        <p id="emptyHint" class="empty-hint" hidden>暂无商品，请检查 ES 数据或同步接口。</p>
       </section>
     </main>
 
@@ -47,27 +48,50 @@
   <script src="js/app.js"></script>
   <script>
     (function() {
-      var form = document.getElementById('loginForm');
-      var msgEl = document.getElementById('loginMessage');
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var username = document.getElementById('login-username').value.trim();
-        var password = document.getElementById('login-password').value;
+      var grid = document.getElementById('productGrid');
+      var emptyHint = document.getElementById('emptyHint');
+      var msgEl = document.getElementById('searchMessage');
+
+      app.renderNav(document.getElementById('navUser'), document.getElementById('navLogin'), document.getElementById('navLogout'));
+
+      function renderList(list) {
+        grid.innerHTML = '';
+        if (!list || !list.length) {
+          emptyHint.hidden = false;
+          return;
+        }
+        emptyHint.hidden = true;
+        list.forEach(function(p) {
+          var a = document.createElement('a');
+          a.className = 'product-card';
+          a.href = 'product.html?id=' + encodeURIComponent(p.id);
+          a.innerHTML =
+            '<span class="pc-name">' + app.escapeHtml(p.name || '') + '</span>' +
+            '<span class="pc-price">¥' + app.formatMoney(p.price) + '</span>' +
+            '<span class="pc-stock">库存 ' + (p.stock != null ? p.stock : '—') + '</span>';
+          grid.appendChild(a);
+        });
+      }
+
+      function load(keyword) {
         app.showMessage(msgEl, '');
-        app.login(username, password)
+        app.productSearch(keyword)
           .then(function(res) {
-            if (res.success && res.data && res.data.token) {
-              app.setToken(res.data.token);
-              app.showMessage(msgEl, '登录成功，正在跳转…', 'success');
-              setTimeout(function() { window.location.href = 'index.html'; }, 800);
-            } else {
-              app.showMessage(msgEl, res.msg || '登录失败', 'error');
-            }
+            if (res.success) renderList(res.data || []);
+            else app.showMessage(msgEl, res.msg || '加载失败', 'error');
           })
           .catch(function(err) {
-            app.showMessage(msgEl, err.message || '网络错误，请重试', 'error');
+            app.showMessage(msgEl, err.message || '请求失败', 'error');
           });
+      }
+
+      document.getElementById('searchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var kw = document.getElementById('keyword').value.trim();
+        load(kw || null);
       });
+
+      load(null);
     })();
   </script>
 </body>

@@ -5,6 +5,7 @@ import dev.wanheng.springjwtlogin.domain.Product;
 import dev.wanheng.springjwtlogin.mapper.ProductMapper;
 import dev.wanheng.springjwtlogin.repository.ProductSearchRepository;
 import jakarta.annotation.Resource;
+import org.springframework.data.elasticsearch.NoSuchIndexException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,11 +22,16 @@ public class ProductSearchService {
 
     //按关键词搜索商品
     public List<ProductDocument> search(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return StreamSupport.stream(productSearchRepository.findAll().spliterator(), false)
-                    .limit(100).collect(Collectors.toList());
+        try {
+            if (keyword == null || keyword.isBlank()) {
+                return StreamSupport.stream(productSearchRepository.findAll().spliterator(), false)
+                        .limit(100).collect(Collectors.toList());
+            }
+            return productSearchRepository.findByNameContainingOrDescriptionContaining(keyword.trim(), keyword.trim());
+        } catch (NoSuchIndexException e) {
+            //ES索引尚未创建/尚未同步数据时，返回空列表以便前端提示用户同步
+            return List.of();
         }
-        return productSearchRepository.findByNameContainingOrDescriptionContaining(keyword.trim(), keyword.trim());
     }
 
     //将MySQL商品表数据同步到Elasticsearch

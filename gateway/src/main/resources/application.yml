@@ -1,0 +1,83 @@
+server:
+  port: 8080
+
+spring:
+  main:
+    web-application-type: reactive
+  application:
+    name: goodsystem-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        register-enabled: false
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+    gateway:
+      default-filters:
+        #统一限流：每秒5个令牌，突发10
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 5
+            redis-rate-limiter.burstCapacity: 10
+            key-resolver: "#{@ipKeyResolver}"
+        #统一熔断：异常/超时触发，走降级
+        - name: CircuitBreaker
+          args:
+            name: gwCb
+            fallbackUri: forward:/_fallback
+      routes:
+        - id: spring-jwt-login-auth
+          uri: lb://spring-jwt-login
+          predicates:
+            - Path=/auth/**
+        - id: spring-jwt-login-product
+          uri: lb://spring-jwt-login
+          predicates:
+            - Path=/product/**
+        - id: spring-jwt-login-seckill
+          uri: lb://spring-jwt-login
+          predicates:
+            - Path=/seckill/**
+        - id: spring-jwt-login-config
+          uri: lb://spring-jwt-login
+          predicates:
+            - Path=/config/**
+        - id: spring-jwt-login-demo
+          uri: lb://spring-jwt-login
+          predicates:
+            - Path=/demo/**
+        - id: spring-jwt-login-actuator
+          uri: lb://spring-jwt-login
+          predicates:
+            - Path=/actuator/**
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+resilience4j:
+  timelimiter:
+    instances:
+      gwCb:
+        timeout-duration: 1s
+  circuitbreaker:
+    instances:
+      gwCb:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+

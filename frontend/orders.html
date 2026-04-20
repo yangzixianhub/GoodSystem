@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的订单</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="page-wrap page-wide">
+    <nav class="top-nav">
+      <a class="nav-brand" href="index.html">GoodSystem</a>
+      <div class="nav-links">
+        <a href="index.html">商品</a>
+        <a href="orders.html" class="nav-active">我的订单</a>
+        <span id="navUser" class="nav-user"></span>
+        <a id="navLogin" href="login.html">登录</a>
+        <a id="navLogout" href="#" hidden>退出</a>
+      </div>
+    </nav>
+
+    <main class="shop-main">
+      <h1 class="section-title">我的订单</h1>
+      <p class="muted small">订单状态由订单服务与库存服务通过消息最终一致；待支付订单可点击模拟支付。</p>
+
+      <section id="needLogin" class="card" hidden>
+        <p>请先 <a href="login.html">登录</a> 查看订单。</p>
+      </section>
+
+      <section id="orderSection" class="card order-section" hidden>
+        <div id="listMessage" class="message" role="alert" hidden></div>
+        <table class="order-table" id="orderTable">
+          <thead>
+            <tr>
+              <th>订单号</th>
+              <th>商品ID</th>
+              <th>单价</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="orderBody"></tbody>
+        </table>
+        <p id="orderEmpty" class="empty-hint" hidden>暂无订单，去 <a href="index.html">商城</a> 秒杀一件吧。</p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>分布式作业 HW1 · GoodSystem</p>
+    </footer>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      var needLogin = document.getElementById('needLogin');
+      var orderSection = document.getElementById('orderSection');
+      var tbody = document.getElementById('orderBody');
+      var listMsg = document.getElementById('listMessage');
+      var emptyEl = document.getElementById('orderEmpty');
+
+      app.renderNav(document.getElementById('navUser'), document.getElementById('navLogin'), document.getElementById('navLogout'));
+
+      function statusText(s) {
+        var m = { 0: '处理中', 1: '待支付', 2: '已支付', 3: '失败', 4: '已取消' };
+        return m[s] != null ? m[s] : String(s);
+      }
+
+      function renderRows(list) {
+        tbody.innerHTML = '';
+        if (!list || !list.length) {
+          emptyEl.hidden = false;
+          return;
+        }
+        emptyEl.hidden = true;
+        list.forEach(function(o) {
+          var tr = document.createElement('tr');
+          var canPay = o.status === 1;
+          tr.innerHTML =
+            '<td>' + app.escapeHtml(String(o.orderId)) + '</td>' +
+            '<td>' + app.escapeHtml(String(o.productId)) + '</td>' +
+            '<td>¥' + app.formatMoney(o.unitPrice) + '</td>' +
+            '<td><span class="order-status st-' + o.status + '">' + statusText(o.status) + '</span></td>' +
+            '<td class="nowrap">' + app.escapeHtml(o.createdAt || '') + '</td>' +
+            '<td>' +
+              (canPay ? '<button type="button" class="btn btn-small btn-pay" data-oid="' + o.orderId + '">支付</button>' : '—') +
+              ' <a class="link-detail" href="order-detail.html?id=' + encodeURIComponent(o.orderId) + '">详情</a>' +
+            '</td>';
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('.btn-pay').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var oid = btn.getAttribute('data-oid');
+            app.showMessage(listMsg, '');
+            app.payOrder(oid)
+              .then(function(res) {
+                if (res.success) {
+                  app.showMessage(listMsg, res.data || '支付已受理', 'success');
+                  load();
+                } else {
+                  app.showMessage(listMsg, res.msg || '支付失败', 'error');
+                }
+              })
+              .catch(function(err) {
+                if (err.status === 401) {
+                  window.location.href = 'login.html';
+                  return;
+                }
+                app.showMessage(listMsg, err.message || '支付失败', 'error');
+              });
+          });
+        });
+      }
+
+      function load() {
+        app.showMessage(listMsg, '');
+        app.ensureUserId()
+          .then(function(uid) {
+            return app.listOrders(uid);
+          })
+          .then(function(res) {
+            if (res.success) renderRows(res.data || []);
+            else app.showMessage(listMsg, res.msg || '加载失败', 'error');
+          })
+          .catch(function(err) {
+            if (err.status === 401) {
+              needLogin.hidden = false;
+              orderSection.hidden = true;
+              return;
+            }
+            app.showMessage(listMsg, err.message || '加载失败', 'error');
+          });
+      }
+
+      if (!app.getToken()) {
+        needLogin.hidden = false;
+        return;
+      }
+
+      needLogin.hidden = true;
+      orderSection.hidden = false;
+      load();
+    })();
+  </script>
+</body>
+</html>
